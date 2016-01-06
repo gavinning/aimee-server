@@ -1,0 +1,14 @@
+{
+  "name": "vpm-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "aimee.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "vpm-cache": "^1.0.0"
+  }
+}
