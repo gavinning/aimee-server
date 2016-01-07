@@ -6,9 +6,9 @@ var express = require('express');
 var router = express.Router();
 var config = require('./config');
 var cache = require('./db');
-var crypto = rose.crypto;
+var crypto = system.crypto;
 
-// rose.app.name
+// system.app.name
 exports.name = 'aimee';
 exports.router = router;
 exports.static = path.join(__dirname, 'static');
@@ -22,6 +22,10 @@ function isLogin(req) {
 function isAuthor(req) {
 
 }
+
+router.get('/', function(req, res){
+    res.status(200).send('Hello aimee')
+})
 
 /**
  * 查询模块信息api
