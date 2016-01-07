@@ -9,6 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "vpm-cache": "^1.0.0"
+    "linco.lab": "0.0.17",
+    "lru-cache": "^4.0.0",
+    "markdown": "^0.5.0",
+    "thenjs": "^2.0.2",
+    "vpm-package": "^1.0.1"
   }
 }

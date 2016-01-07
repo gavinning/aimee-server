@@ -1,31 +1,34 @@
 var fs = require('fs');
+var ass = require('assert');
 var path = require('path');
+var pm = require('thenjs');
+var lru = require('lru-cache');
+var lib = require('./lib');
 var app = require('./app');
-var lib = require('linco.lab').lib;
-var express = require('express');
-var router = express.Router();
 var config = require('./config');
-var cache = require('./db');
 var crypto = system.crypto;
+var router = system.express.Router();
+var user = system.app.user;
+
+var lruOptions = {
+    max: 500,
+    length: function (n, key) { return n * 2 + key.length },
+    dispose: function (key, n) { n.close() },
+    maxAge: 1000 * 60 * 60
+};
+var cache = lru(lruOptions);
 
 // system.app.name
 exports.name = 'aimee';
 exports.router = router;
 exports.static = path.join(__dirname, 'static');
 
-// 检查用户是否已登录
-function isLogin(req) {
-    return crypto.baseToHEX(req.headers.auth) === config.user[req.headers.username].password ?
-        true : false;
-}
-
-function isAuthor(req) {
-
-}
 
 router.get('/', function(req, res){
     res.status(200).send('Hello aimee')
 })
+
+// For aimee-cli start
 
 /**
  * 查询模块信息api
@@ -49,61 +52,6 @@ router.get('/api/query', function(req, res){
 })
 
 /**
- * 提交模块api
- * @param   {String}  req.headers.name      提交模块名称
- * @param   {String}  req.headers.version   提交模块版本
- * @param   {String}  req.headers.username  提交模块用户
- * @return  {String}                        响应信息
- * @example fs.createReadStream(zip).pipe(request.post(domain/api/publish, fn))
- */
-router.post('/api/publish', function(req, res){
-    var package;
-
-    // 检查是否已登录
-    if(!isLogin(req)){
-        return res.status(403).send('Plase login first')
-    }
-
-    // 获取app信息
-    // req.headers.name
-    // req.headers.version
-    // req.headers.username
-    app.get(req.headers);
-
-    // 检查app是否已存在，不存在则初始化该模块
-    if(!app.isExist()){
-        app.init()
-    }
-
-    // 获取该模块配置信息，用于对比用户权限
-    package = app.getPackage();
-
-    // 检查是否有更新权限
-    if(package.author !== req.headers.username){
-        // 如果已存在则返回错误提示
-        return res.status(403).send('Permission denied')
-    }
-
-    // 检查当前提交的版本是否已存在
-    if(app.isVersionExist()){
-        // 如果已存在则返回错误提示
-        return res.status(403).send(app.error(1))
-    }
-
-    // 写入模块包
-    req.pipe(fs.createWriteStream(app.zip));
-
-    // 响应客户端请求
-    req.on('end', function(){
-        // 更新版本库信息
-        app.update();
-        // 返回信息
-        res.status(200).send('success')
-        // 解压包到preview路径下
-    })
-})
-
-/**
  * 下载模块api
  * @param   {String}  req.query.name    名称
  * @param   {String}  req.query.version 版本
@@ -116,71 +64,112 @@ router.get('/api/app', function(req, res){
     res.status(200).download(app.zip)
 })
 
-// login
-router.post('/api/login', function(req, res){
-    var someone = config.user[req.body.username];
+/**
+ * 提交模块api
+ * @param   {String}  req.headers.name      提交模块名称
+ * @param   {String}  req.headers.version   提交模块版本
+ * @param   {String}  req.headers.username  提交模块用户
+ * @return  {String}                        响应信息
+ * @example fs.createReadStream(zip).pipe(request.post(domain/api/publish, fn))
+ */
+router.post('/api/publish', function(req, res){
+    var package;
 
-    // 检查用户是否存在
-    if(!someone || !someone.username){
-        return res.status(403).send('Username is not exist')
-    }
+    pm()
+        .then(function(cont){
+            user.isLogin(req.headers, function(err, isLogin){
+                err ?
+                    res.status(403).send(err.message):
+                    isLogin ?
+                        cont():
+                        res.status(403).send('Plase login first');
+            })
+        })
+        .then(function(cont){
+            // 获取app信息
+            // req.headers.name
+            // req.headers.version
+            // req.headers.username
+            app.get(req.headers);
 
-    // 检查密码是否正确
-    if(someone.password === crypto.hex(req.body.password)){
-        res.status(200).send(crypto.base(req.body.password))
-    }
+            // 检查app是否已存在，不存在则初始化该模块
+            if(!app.isExist()){
+                app.init()
+            }
 
-    else{
-        res.status(403).send('Password mistake')
-    }
+            // 获取该模块配置信息，用于对比用户权限
+            package = app.getPackage();
+
+            // 检查是否有更新权限
+            if(package.author !== req.headers.username){
+                // 如果已存在则返回错误提示
+                return res.status(403).send('Permission denied')
+            }
+
+            // 检查当前提交的版本是否已存在
+            if(app.isVersionExist()){
+                // 如果已存在则返回错误提示
+                return res.status(403).send(app.error(1))
+            }
+
+            // 写入模块包
+            req.pipe(fs.createWriteStream(app.zip));
+
+            // app提交成功，响应客户端请求
+            req.on('end', function(){
+                // 更新版本库信息
+                app.update();
+                // 返回信息
+                res.status(200).send('success')
+                // 解压包到preview路径下
+                lib.unzipToPreview(app)
+            })
+        })
 })
 
+// For aimee-cli end...
+// For aimee-sage start
 
-// 检查用户注册信息
-function regCheck(req) {
-    // 检查注册用户名
-    if(!req.body.username){
-        return {code: 403, message: 'Can\'t find username'}
-    }
-
-    // 检查注册密码
-    if(!req.body.password){
-        return {code: 403, message: 'Can\'t find password'}
-    }
-
-    // 检查已注册用户是否重复
-    if(config.user[req.body.username]){
-        return {code: 403, message: 'user is exist'}
-    }
-
-    return {code: 200, message: req.body.username + ' is reg'}
+/*
+cache = {
+    "allPackagesList": "所有的模块列表"
 }
+ */
 
-// reg
-router.post('/api/reg', function(req, res){
-    var user = cache.get('user');
-    var msg = regCheck(req);
+// 获取App列表
+router.get('/api/getPackages', function(req, res){
+    var allPackagesList = cache.get('allPackagesList');
 
-    if(msg.code !== 200){
-        return res.status(msg.code).send(msg.message)
+    if(allPackagesList){
+        res.status(200).json({code: 0, data: allPackagesList})
     }
-
-    // 注册用户
-    user.set(req.body.username, {
-        username: req.body.username,
-        password: crypto.hex(req.body.password),
-        email: req.body.email
-    })
-    // 持久化存储
-    user.save(function(err, success){
-        if(err){
-            res.status(500).json(err)
-        }
-
-        else {
-            // 更新config.user
-            config.user = user.get();
-            res.status(msg.code).send(crypto.base(req.body.password))
-        }
-    })
+    else{
+        allPackagesList = lib.getAllPackageList();
+        res.status(200).json({code: 0, data: allPackagesList})
+        // cache.set('allPackagesList', allPackagesList);
+    }
 })
+
+router.get('/api/package', function(req, res){
+    var msg = lib.preview(req.query);
+    msg.code === 0 ?
+        res.status(200).send(msg):
+        res.status(404).send(msg);
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//

@@ -24,11 +24,19 @@ exports.getZipName = function(){
 // 获取当前app的配置信息
 exports.config = function(){
     try{
-        return JSON.parse(fs.readFileSync(this.configFile, 'utf-8'));
+        return require(this.configFile)
     }
     catch(e){}
 }
 
+// 获取配置文件
+exports.getPackage = function(){
+    try{
+        return require(this.configFile)
+    }catch(e){
+        return {}
+    }
+}
 /**
  * 在版本库初始化一个app
  * 1.在版本库新建app目录
@@ -69,15 +77,6 @@ exports.update = function(_config){
 // 写入配置文件
 exports.writePackage = function(config){
     fs.writeFileSync(this.configFile, JSON.stringify(config), 'utf-8');
-}
-
-// 获取配置文件
-exports.getPackage = function(){
-    try{
-        return JSON.parse(fs.readFileSync(this.configFile, 'utf-8'))
-    }catch(e){
-        return {}
-    }
 }
 
 // 检查app是否已存在

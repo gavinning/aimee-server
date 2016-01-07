@@ -1,8 +1,14 @@
 var fs = require('fs');
 var path = require('path');
-var cache = require('./db');
-var config = module.exports = {};
 
-config.rep = {};
-config.rep.path = path.join(__dirname, 'cache/rep');
-config.user = cache.get('user').get();
+module.exports = {
+
+    rep: {
+        path: path.join(__dirname, 'cache/rep'),
+        preview: path.join(__dirname, 'cache/preview')
+    },
+
+    name: {
+        configFile: 'package.json'
+    }
+}
