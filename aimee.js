@@ -2,21 +2,13 @@ var fs = require('fs');
 var ass = require('assert');
 var path = require('path');
 var pm = require('thenjs');
-var lru = require('lru-cache');
-var lib = require('./lib');
-var app = require('./app');
-var config = require('./config');
+var lib = require('./lib/lib');
+var app = require('./lib/app');
+var cache = require('./lib/cache');
+var config = require('./lib/config');
 var crypto = system.crypto;
 var router = system.express.Router();
 var user = system.app.user;
-
-var lruOptions = {
-    max: 500,
-    length: function (n, key) { return n * 2 + key.length },
-    dispose: function (key, n) { n.close() },
-    maxAge: 1000 * 60 * 60
-};
-var cache = lru(lruOptions);
 
 // system.app.name
 exports.name = 'aimee';
@@ -138,26 +130,36 @@ cache = {
 
 // 获取App列表
 router.get('/api/getPackages', function(req, res){
-    var allPackagesList = cache.get('allPackagesList');
-
-    if(allPackagesList){
-        res.status(200).json({code: 0, data: allPackagesList})
-    }
-    else{
-        allPackagesList = lib.getAllPackageList();
-        res.status(200).json({code: 0, data: allPackagesList})
-        // cache.set('allPackagesList', allPackagesList);
-    }
+    var allPackagesList = lib.getAllPackageListFromCache();
+    // 数据分页
+    var pagingList = lib.paging(allPackagesList, req.query);
+    // 响应请求
+    res.status(200).json({code: 0, data: {list: pagingList}});
 })
 
+// 查询App
 router.get('/api/package', function(req, res){
     var msg = lib.preview(req.query);
     msg.code === 0 ?
+        // res.render(path.join(__dirname, 'views/index'), {md: msg.data.md}):
         res.status(200).send(msg):
         res.status(404).send(msg);
 })
 
+// 搜索App
+router.get('/api/search', function(req, res){
+    var allPackagesList, searchList, pagingList;
 
+    if(!req.query.keyword){
+        res.status(404).send('Not found');
+    }
+
+    allPackagesList = lib.getAllPackageListFromCache();
+    searchList = lib.searchKeyword(allPackagesList, req.query.keyword);
+    // 数据分页
+    pagingList = lib.paging(searchList, req.query);
+    res.status(200).json({code: 0, data: {list: pagingList}});
+})
 
 
 

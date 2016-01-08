@@ -1,0 +1,18 @@
+doctype html
+html
+    head
+        title= title
+        link(rel='stylesheet', href='/stylesheets/style.css')
+        link(rel='stylesheet', href='/static/aimee/css/style.css')
+        link(rel='stylesheet', href='/static/aimee/css/pilcrow.css')
+        link(rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/styles/default.min.css")
+        script(src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.1.0/highlight.min.js")
+        script 
+    body
+        h1= title
+        p Welcome to #{title}
+        #wrapper.wrapper
+        div#md(style="display: none") #{md}
+        script.
+            document.getElementById('wrapper').innerHTML = document.getElementById('md').innerText;
+            hljs.initHighlightingOnLoad();
