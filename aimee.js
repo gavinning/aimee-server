@@ -115,6 +115,8 @@ router.post('/api/publish', function(req, res){
                 res.status(200).send('success')
                 // 解压包到preview路径下
                 lib.unzipToPreview(app)
+                // 更新列表缓存
+                cache.del('allPackagesList');
             })
         })
 })
