@@ -163,7 +163,13 @@ router.get('/api/search', function(req, res){
     res.status(200).json({code: 0, data: {list: pagingList}});
 })
 
-
+// #166
+// 返回 app://cache/preview/app/version/*.png|jpg|gif 静态资源
+router.get('/static/preview/:name/:version/*', function(req, res){
+    var type = path.extname(req.params[0]).slice(1);
+    var url = path.join(config.rep.preview, req.params.name, req.params.version, req.params[0]);
+    res.type(type).status(200).send(fs.readFileSync(url))
+})
 
 
 
