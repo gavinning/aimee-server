@@ -171,6 +171,171 @@ router.get('/static/preview/:name/:version/*', function(req, res){
     res.type(type).status(200).send(fs.readFileSync(url))
 })
 
+// ------------ add
+
+var pm = require('thenjs');
+var sort = require('sort-on');
+
+
+// 返回组合请求
+// eg: /api/groups/getPackages,t=20/getHots,t=30/getLasts,t=40
+router.get('/api/groups/*', function(req, res){
+    res.json(groupsHandler(req.params[0]))
+})
+
+// Format eg: 'getPackages,t=20/getHots,t=30/getLasts,t=40'
+function parseGroups(string) {
+    var reqs = string.split('/');
+    var rets = [];
+
+    // loop reqs
+    reqs.forEach(function(item){
+        var arr, args, ret;
+
+        // format req's arguments
+        arr = item.split(',');
+        ret = {};
+        ret.requestName = arr[0];
+        ret.arguments = {};
+
+        // 如果请求有参数，解析参数
+        if(arr.length > 1){
+            args = arr[1].split('&');
+
+            // loop req's argumens
+            args.forEach(function(arg){
+                var argArr = arg.split('=');
+                ret.arguments[argArr[0]] = argArr[1]
+            })
+        }
+
+        rets.push(ret);
+    })
+    // 返回格式化后的请求
+    return rets;
+}
+
+// 组合请求处理
+function groupsHandler(url){
+    var data = {};
+    var reqs = parseGroups(url);
+    reqs.forEach(function(req) {
+        switch(req.requestName){
+            case 'getLasts':
+                data.getLasts = {
+                    type: 'lasts',
+                    list: getLasts(req.arguments)
+                };
+                break;
+
+            case 'getRecommends':
+                data.getRecommends = {
+                    type: 'recommends',
+                    list: getRecommends(req.arguments)
+                };
+                break;
+
+            case 'getMoreDownloads':
+                data.getMoreDownloads = {
+                    type: 'downloads',
+                    list: getMoreDownloads(req.arguments)
+                };
+                break;
+        }
+    })
+    data.code = 0;
+    return data;
+}
+
+// 获取所有App的请求
+function getPackages(args){
+    var allPackagesList = lib.getAllPackageListFromCache();
+    // 数据分页
+    var pagingList = lib.paging(allPackagesList, args);
+    // 响应请求
+    return pagingList;
+}
+
+// 获取最近更新App的请求
+function getLasts(args){
+    var allPackagesList, pagingList;
+
+    // 从缓存中获取所有模块列表
+    allPackagesList = lib.getAllPackageListFromCache();
+    // 按照时间倒序排序
+    allPackagesList = sort(allPackagesList, 'time.modified').reverse();
+    // 数据分页
+    pagingList = lib.paging(allPackagesList, args);
+    // 响应请求
+    return pagingList;
+}
+
+// 获取推荐的App的请求
+function getRecommends(args){
+    var list = [];
+    var allPackagesList = lib.getAllPackageListFromCache();
+    var recommends = [
+        'aimee',
+        'app',
+        'page',
+
+        'base',
+        'reset',
+        'class',
+
+        'form',
+        'share',
+        'list',
+
+        'bigpic',
+        'swipe',
+        'swiper'
+    ];
+    allPackagesList.forEach(function(app){
+        if(recommends.indexOf(app.name) >= 0){
+            list.push(app)
+        }
+    })
+    return list;
+}
+
+// 最多下载
+function getMoreDownloads(args){
+    var list = [];
+    var allPackagesList = lib.getAllPackageListFromCache();
+    var downloads = [
+        "is",
+        "guid",
+        "mock",
+
+        "aimee",
+        "class",
+        "config",
+
+        "router",
+        "page",
+        "pm",
+
+        "autoscreen",
+        "extend",
+        "app",
+
+        "loading",
+        "base",
+        "zepto",
+
+        "helloworld",
+        "swipe",
+        "reset"
+    ];
+    allPackagesList.forEach(function(app){
+        if(downloads.indexOf(app.name) >= 0){
+            list.push(app)
+        }
+    })
+    return list;
+}
+
 
 
 
