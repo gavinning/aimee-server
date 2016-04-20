@@ -109,14 +109,18 @@ router.post('/api/publish', function(req, res){
 
             // app提交成功，响应客户端请求
             req.on('end', function(){
-                // 更新版本库信息
-                app.update();
-                // 返回信息
-                res.status(200).send('success')
                 // 解压包到preview路径下
-                lib.unzipToPreview(app)
+                lib.unzipToPreview(app);
+                // 延迟更新app信息
+                // TODO: 优化解压策略，异步解压后回调更新新app信息
+                setTimeout(function(){
+                    // 更新版本库信息
+                    app.update();
+                }, 500);
                 // 更新列表缓存
                 cache.del('allPackagesList');
+                // 返回信息
+                res.status(200).send('success')
             })
         })
 })
