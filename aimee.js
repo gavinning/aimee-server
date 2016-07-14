@@ -6,9 +6,11 @@ var lib = require('./lib/lib');
 var app = require('./lib/app');
 var cache = require('./lib/cache');
 var config = require('./lib/config');
+var poster = require('./lib/poster');
 var crypto = system.crypto;
 var router = system.express.Router();
 var user = system.app.user;
+
 
 // system.app.name
 exports.name = 'aimee';
@@ -64,7 +66,7 @@ router.get('/api/app', function(req, res){
  * @return  {String}                        响应信息
  * @example fs.createReadStream(zip).pipe(request.post(domain/api/publish, fn))
  */
-router.post('/api/publish', function(req, res){
+router.post('/api/_publish_bak', function(req, res){
     var package;
 
     pm()
@@ -123,6 +125,102 @@ router.post('/api/publish', function(req, res){
                 res.status(200).send('success')
             })
         })
+})
+
+// 兼容Form-data方式上传，用于规避某些网络限制
+router.post('/api/publish', poster.ParseFiles, function(req, res){
+    var package, publish, source, target;
+
+    publish = new Promise(function(rs, rj){
+        user.isLogin(req.headers, function(err, isLogin){
+            err ?
+                res.status(403).send(err.message):
+                isLogin ?
+                    rs():
+                    res.status(403).send('Plase login first');
+        })
+    })
+
+    publish.then(function(rs, rj){
+        // 获取app信息
+        // req.headers.name
+        // req.headers.version
+        // req.headers.username
+        app.get(req.headers);
+
+        // 检查app是否已存在，不存在则初始化该模块
+        if(!app.isExist()){
+            app.init()
+        }
+
+        // 获取该模块配置信息，用于对比用户权限
+        package = app.getPackage();
+
+        // 检查是否有更新权限
+        if(package.author !== req.headers.username){
+            // 如果已存在则返回错误提示
+            return res.status(403).send('Permission denied')
+        }
+
+        // 检查当前提交的版本是否已存在
+        if(app.isVersionExist()){
+            // 如果已存在则返回错误提示
+            return res.status(403).send(app.error(1))
+        }
+
+        // ======> 接收并写入模块包
+        // Form-data
+        if(!!req.body.field && !!req.files[req.body.field]){
+            target = app.zip;
+            source = req.files[req.body.field].path;
+
+            // 写入模块
+            return poster.dest(source, target, (err) => {
+                if(err){
+                    res.status(403).send(err.message)
+                }
+                else{
+                    // 解压包到preview路径下
+                    lib.unzipToPreview(app);
+                    // 延迟更新app信息
+                    // TODO: 优化解压策略，异步解压后回调更新新app信息
+                    setTimeout(function(){
+                        // 更新版本库信息
+                        app.update();
+                    }, 500);
+                    // 更新列表缓存
+                    cache.del('allPackagesList');
+                    // 返回信息
+                    res.status(200).send('success')
+                }
+            })
+        }
+        // Stream
+        else{
+            // 尝试写入模块包
+            try{
+                req.pipe(fs.createWriteStream(app.zip));
+            }
+            catch(e){
+                res.status(500).send('Publish Fail')
+            }
+            // app提交成功，响应客户端请求
+            req.on('end', function(){
+                // 解压包到preview路径下
+                lib.unzipToPreview(app);
+                // 延迟更新app信息
+                // TODO: 优化解压策略，异步解压后回调更新新app信息
+                setTimeout(function(){
+                    // 更新版本库信息
+                    app.update();
+                }, 500);
+                // 更新列表缓存
+                cache.del('allPackagesList');
+                // 返回信息
+                res.status(200).send('Success')
+            })
+        }
+    })
 })
 
 // For aimee-cli end...
